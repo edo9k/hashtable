@@ -34,7 +34,7 @@ static void ht_del_item(ht_item* i) {
 void ht_del_hash_table(ht_hash_table* ht) {
   for (int i = 0; i < ht->size; i++) {
     ht_item* item = ht->items[i];
-    if (item != NULL) {
+    if (item != NULL && item != &HT_DELETE_ITEM) {
       ht_del_item(item);
     }
   }
@@ -47,8 +47,8 @@ static int ht_hash(const char* s, const int a, const int m) {
   const int len_s = strlen(s);
   for (int i = 0; i < len_s; i++) {
     hash += (long) pow(a, len_s - (i + 1)) * s[i];
-    hash = hash % m;
   }
+  hash = hash % m;
   return (int) hash;
 }
 
@@ -68,6 +68,7 @@ void ht_insert(ht_hash_table* ht, const char* key, const char* value) {
   int index = ht_get_hash(item->key, ht->size, 0);
   ht_item* cur_item = ht->items[index];
   int i = 1;
+  int del_index = 1;
   while (cur_item != NULL) {
     if(cur_item != &HT_DELETED_ITEM) {
       if (strcmp(cur_item->key, key) == 0) {
@@ -75,12 +76,18 @@ void ht_insert(ht_hash_table* ht, const char* key, const char* value) {
         ht->items[index] = item;
         return;
       }
+    } else if (del_index == -1) {
+      del_index = index;
     }
     index = ht_get_hash(item->key, ht->size, i);
     cur_item = ht->items[index];
     i++;
   }
-  ht->items[index] = item;
+  if (del_index != -1) {
+    ht->items[del_index] = item;
+  } else {
+    ht->items[index] = item;
+  }
   ht->count++;
 }
 
@@ -117,13 +124,15 @@ void ht_delete(ht_hash_table* ht, const char* key) {
       if (strcmp(item->key, key) == 0) {
         ht_del_item(item);
         ht->items[index] = &HT_DELETED_ITEM;
+        ht->count--;
+        return;
       }
     }
     index = ht_get_hash(key, ht->size, i);
     item = ht->items[index];
     i++;
   }
-  ht->count--;
+
 }
 
 static void ht_resize(ht_hash_table* ht, const int base_size) {
